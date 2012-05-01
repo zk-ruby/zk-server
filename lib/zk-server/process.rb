@@ -66,7 +66,7 @@ module ZK
       # array to which additional JVM flags should be added
       # default is {DEEFAULT_JVM_FLAGS}
       attr_accessor :jvm_flags
-       
+
       def initialize(opts={})
         @base_dir = File.join(Dir.getwd, 'zk-server')
         @zoo_cfg_hash = {}
@@ -81,6 +81,12 @@ module ZK
         @max_client_cnxns = 100
 
         opts.each { |k,v| __send__(:"#{k}=", v) }
+
+        @running = false
+      end
+
+      def running?
+        @running
       end
 
       def zoo_cfg_path
@@ -100,8 +106,14 @@ module ZK
       end
 
       def run
+        return if @running
+        @running = true
         create_files!
-        puts command_args
+        command_args
+
+      rescue
+        @running = false
+        raise
       end
 
       def classpath
