@@ -10,6 +10,24 @@ module ZK
     class Process
       include FileUtils::Verbose
 
+      DEFAULT_JVM_FLAGS = %w[
+        -server 
+        -Xmx256m
+        -Dzookeeper.serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory 
+      ].freeze
+
+      # the com.sun.managemnt.jmxremote.port arg will be filled in dynamically
+      # based on the {#jmx_port} value
+      #
+      DEFAULT_JMX_ARGS = %w[
+        -Dcom.sun.management.jmxremote=true
+        -Dcom.sun.management.jmxremote.local.only=false
+        -Dcom.sun.management.jmxremote.authenticate=false
+        -Dcom.sun.management.jmxremote.ssl=false
+      ].freeze
+
+      ZOO_MAIN = 'org.apache.zookeeper.server.quorum.QuorumPeerMain'.freeze
+
       # The top level directory we will store all of our data under. used as the
       # basis for all other path generation. Defaults to `File.join(Dir.getwd, 'zk-server')`
       attr_accessor :base_dir
@@ -37,15 +55,30 @@ module ZK
       # default: no value set
       attr_accessor :force_sync
 
-      def initialize(opts={})
-        @base_dir = Dir.getwd
-        @zoo_cfg_hash = {}
-        @tick_time = 2000
-        @client_port = 2181
-        @snap_count = nil
-        @force_sync = nil
-        @max_client_cnxns = 100
+      # if truthy, will enable jmx (defaults to false)
+      # note that our defualt jmx config has all security and auth turned off
+      # if you want to customize this, then use jvm_flags and set this to false
+      attr_accessor :enable_jmx
 
+      # default jmx port is 22222
+      attr_accessor :jmx_port
+
+      # array to which additional JVM flags should be added
+      # default is {DEEFAULT_JVM_FLAGS}
+      attr_accessor :jvm_flags
+       
+      def initialize(opts={})
+        @base_dir = File.join(Dir.getwd, 'zk-server')
+        @zoo_cfg_hash = {}
+        @tick_time    = 2000
+        @client_port  = 2181
+        @snap_count   = nil
+        @force_sync   = nil
+        @jmx_port     = 22222
+        @enable_jmx   = false
+        @jvm_flags    = DEFAULT_JVM_FLAGS.dup
+
+        @max_client_cnxns = 100
 
         opts.each { |k,v| __send__(:"#{k}=", v) }
       end
@@ -58,12 +91,32 @@ module ZK
         File.join(base_dir, 'log4j.properties')
       end
 
+      def log_dir
+        File.join(base_dir, 'log')
+      end
+
       def data_dir
         File.join(base_dir, 'data')
       end
 
       def run
         create_files!
+        puts command_args
+      end
+
+      def classpath
+        @classpath ||= [Server.zk_jar_path, Server.log4j_jar_path, base_dir]
+      end
+
+      def command_args
+        cmd = [Server.java_binary_path]
+        cmd += %W[-Dzookeeper.log_dir=#{log_dir} -Dzookeeper.root.logger=INFO,CONSOLE]
+        if enable_jmx
+          cmd += DEFAULT_JMX_ARGS
+          cmd << "-Dcom.sun.management.jmxremote.port=#{jmx_port}"
+        end
+        cmd += jvm_flags
+        cmd += %W[-cp #{classpath.join(':')} #{ZOO_MAIN} #{zoo_cfg_path}]
       end
 
       protected
@@ -86,7 +139,7 @@ module ZK
 tickTime=#{tick_time}
 dataDir=#{data_dir}
 clientPort=#{client_port}
-maxClientCnxns=#{maxClientCnxns}
+maxClientCnxns=#{max_client_cnxns}
             EOS
 
             fp.puts("forceSync=#{force_sync}") if force_sync
