@@ -1,4 +1,4 @@
-module Zk
+module ZK
   module Server
     VERSION = "0.0.1"
   end
