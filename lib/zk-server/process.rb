@@ -10,7 +10,7 @@ module ZK
     class Process
       include ZK::Logging
       extend Forwardable
-      include FileUtils::Verbose
+      include FileUtils
 
       def_delegators :config,
         :base_dir, :data_dir, :log4j_props_path, :log_dir, :command_args,
@@ -26,7 +26,7 @@ module ZK
       attr_accessor :child_startup_timeout
 
       def initialize(opts={})
-        @child_startup_timeout = opts.delete(:child_startup_timeout, 5)
+        @child_startup_timeout = opts.delete(:child_startup_timeout) || 6
         @run_called = false
         @config = Config.new(opts)
         @exit_watching_thread = nil
@@ -113,7 +113,7 @@ module ZK
         fork_and_exec!
         spawn_exit_watching_thread
 
-        unless wait_until_ping
+        unless wait_until_ping(@child_startup_timeout)
           raise "Oh noes! something went wrong!" unless running?
         end
 

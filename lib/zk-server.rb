@@ -18,6 +18,7 @@ module ZK
     ZK_JAR_GEM  = 'slyphon-zookeeper_jar'
     LOG4J_GEM   = 'slyphon-log4j'
 
+
     # Create a new {ZK::Server::Process} instance. if a block is given
     # then yield the {Config} object to the block
     #
@@ -26,6 +27,20 @@ module ZK
       Server::Process.new(opts).tap do |server|
         yield server.config if block_given?
       end
+    end
+
+    # runs a server as a singleton instance. use ZK::Server.shutdown to stop and ZK::Server.clear
+    # to reset
+    def self.run(opts={}, &blk)
+      @server ||= new(opts, &blk).tap { |s| s.run }
+    end
+
+    def self.shutdown
+      @server and @server.shutdown
+    end
+
+    def self.clear
+      @server = nil if @server and not @server.running?
     end
 
     def self.zk_jar_path
