@@ -9,15 +9,15 @@ require 'socket'
 
 Bundler.require
 
-require 'zk'
+# require 'zk'
 
 #ZK.logger = Logger.new($stderr).tap { |l| l.level = Logger::DEBUG }
 
 module ZK
   module Server
+
     ZK_JAR_GEM  = 'slyphon-zookeeper_jar'
     LOG4J_GEM   = 'slyphon-log4j'
-
 
     # Create a new {ZK::Server::Process} instance. if a block is given
     # then yield the {Config} object to the block
@@ -91,6 +91,7 @@ module ZK
 end
 
 require 'zk-server/version'
+require 'zk-server/logging'
 require 'zk-server/config'
 require 'zk-server/process'
 

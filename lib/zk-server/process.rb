@@ -8,9 +8,9 @@ module ZK
     # to store our data under (configurable). 
     #
     class Process
-      include ZK::Logging
       extend Forwardable
       include FileUtils
+      include Logging
 
       def_delegators :config,
         :base_dir, :data_dir, :log4j_props_path, :log_dir, :command_args,
@@ -93,6 +93,7 @@ module ZK
       rescue
         false
       end
+      alias pingable? ping?
 
       # the pid of our child process
       def pid
@@ -155,11 +156,23 @@ module ZK
         end
 
         def fork_and_exec!
-          @pid ||= (
-            args = command_args()
-            args << {:err => [:child, :out], :out => [stdio_redirect_path, File::APPEND|File::CREAT|File::WRONLY]}
-            spawn({}, *command_args)
-          )
+          @pid ||= 
+            fork do                 # gah, use fork because 1.8.7 sucks
+              3.upto(255) do |fd|
+                begin
+                  if io = IO.new(fd)
+                    io.close
+                  end
+                rescue
+                end
+              end
+
+              $stderr.puts "stdio_redirect_path: #{stdio_redirect_path.inspect}"
+              $stdout.reopen($stderr)
+              $stderr.reopen(stdio_redirect_path, 'a')
+
+              exec(*command_args)
+            end
         end
 
         def create_files!
