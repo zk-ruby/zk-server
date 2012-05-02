@@ -9,6 +9,7 @@ Gem::Specification.new do |s|
   s.homepage      = ""
 
   s.add_runtime_dependency 'bundler', '~> 1.1.3'
+  s.add_runtime_dependency 'zk', '>= 1.0.0'
   s.add_runtime_dependency 'slyphon-log4j', '= 1.2.15'
   s.add_runtime_dependency 'slyphon-zookeeper_jar', '~> 3.3.5'
 

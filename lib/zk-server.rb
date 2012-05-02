@@ -3,6 +3,15 @@
 require 'rubygems'
 require 'bundler/setup'
 require 'fileutils'
+require 'forwardable'
+require 'logger'
+require 'socket'
+
+Bundler.require
+
+require 'zk'
+
+ZK.logger = Logger.new($stderr).tap { |l| l.level = Logger::DEBUG }
 
 module ZK
   module Server
@@ -57,5 +66,6 @@ module ZK
 end
 
 require 'zk-server/version'
+require 'zk-server/config'
 require 'zk-server/process'
 

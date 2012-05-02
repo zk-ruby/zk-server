@@ -1,4 +1,4 @@
-source 'https://rubygems.org'
+source :rubygems
 
 group :development do
   gem 'pry'

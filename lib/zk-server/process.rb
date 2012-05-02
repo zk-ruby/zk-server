@@ -4,134 +4,136 @@ module ZK
     # It is intended that it will be stopped and started with the process that starts it.
     # We are not going to do daemonized process management. 
     #
-    # By default, we will create a directory in the current working directory called 'zk'
+    # By default, we will create a directory in the current working directory called 'zk-server'
     # to store our data under (configurable). 
     #
     class Process
+      include ZK::Logging
+      extend Forwardable
       include FileUtils::Verbose
 
-      DEFAULT_JVM_FLAGS = %w[
-        -server 
-        -Xmx256m
-        -Dzookeeper.serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory 
-      ].freeze
+      def_delegators :config,
+        :base_dir, :data_dir, :log4j_props_path, :log_dir, :command_args,
+        :tick_time, :snap_count, :force_sync, :zoo_cfg_hash, :client_port,
+        :max_client_cnxns, :stdio_redirect_path, :zoo_cfg_path
 
-      # the com.sun.managemnt.jmxremote.port arg will be filled in dynamically
-      # based on the {#jmx_port} value
-      #
-      DEFAULT_JMX_ARGS = %w[
-        -Dcom.sun.management.jmxremote=true
-        -Dcom.sun.management.jmxremote.local.only=false
-        -Dcom.sun.management.jmxremote.authenticate=false
-        -Dcom.sun.management.jmxremote.ssl=false
-      ].freeze
+      # the {Config} object that will be used to configure this Process
+      attr_accessor :config
 
-      ZOO_MAIN = 'org.apache.zookeeper.server.quorum.QuorumPeerMain'.freeze
-
-      # The top level directory we will store all of our data under. used as the
-      # basis for all other path generation. Defaults to `File.join(Dir.getwd, 'zk-server')`
-      attr_accessor :base_dir
-
-      # a hash that will be used to provide extra values for the zoo.cfg file.
-      # keys are written as-is to the file, so they should be camel-cased. 
-      #
-      # dataDir will be set relative to {#base_dir} and clientPort will either use
-      # the default of 2181, or can be adjusted by {#client_port=}
-      # 
-      attr_accessor :zoo_cfg_hash
-
-      # what port should the server listen on for connections? (default 2181)
-      attr_accessor :client_port
-
-      # maximum number of client connections (defaults to 100)
-      attr_accessor :max_client_cnxns
-
-      # defaults to 2000
-      attr_accessor :tick_time
-
-      # default: no value set
-      attr_accessor :snap_count
-
-      # default: no value set
-      attr_accessor :force_sync
-
-      # if truthy, will enable jmx (defaults to false)
-      # note that our defualt jmx config has all security and auth turned off
-      # if you want to customize this, then use jvm_flags and set this to false
-      attr_accessor :enable_jmx
-
-      # default jmx port is 22222
-      attr_accessor :jmx_port
-
-      # array to which additional JVM flags should be added
-      # default is {DEEFAULT_JVM_FLAGS}
-      attr_accessor :jvm_flags
+      attr_reader :exit_status
 
       def initialize(opts={})
-        @base_dir = File.join(Dir.getwd, 'zk-server')
-        @zoo_cfg_hash = {}
-        @tick_time    = 2000
-        @client_port  = 2181
-        @snap_count   = nil
-        @force_sync   = nil
-        @jmx_port     = 22222
-        @enable_jmx   = false
-        @jvm_flags    = DEFAULT_JVM_FLAGS.dup
+        @run_called = false
+        @config = Config.new(opts)
+        @exit_watching_thread = nil
 
-        @max_client_cnxns = 100
+        @pid = nil
+        @exit_status = nil
+        @start_queue = Queue.new
 
-        opts.each { |k,v| __send__(:"#{k}=", v) }
-
-        @running = false
+        @mutex      = Monitor.new
+        @exit_cond  = @mutex.new_cond
       end
 
       def running?
-        @running
+        spawned? and !@exit_status and !!::Process.kill(0, @pid)
+      rescue Errno::ESRCH
+        false
       end
 
-      def zoo_cfg_path
-        File.join(base_dir, 'zoo.cfg')
+      def spawned?
+        !!@pid
       end
 
-      def log4j_props_path
-        File.join(base_dir, 'log4j.properties')
+      def shutdown
+        if @pid
+          return if @exit_status
+
+          @mutex.synchronize do
+            %w[HUP TERM KILL].each do |signal|
+              logger.debug { "sending #{signal} to #{@pid}" }
+              ::Process.kill(signal, @pid)
+
+              if @exit_cond.wait(5)
+                logger.debug { "process exited" }
+                break
+              end
+            end
+          end
+
+          logger.debug { "@exit_status: #{@exit_status}" }
+        end
       end
 
-      def log_dir
-        File.join(base_dir, 'log')
+      def ping?
+        TCPSocket.open('localhost', client_port) do |sock|
+          sock.puts('ruok')
+          sock.read == 'imok'
+        end
+      rescue
+        false
       end
 
-      def data_dir
-        File.join(base_dir, 'data')
+      def pid
+        @pid
       end
 
       def run
-        return if @running
-        @running = true
+        return if @run_called
+        @run_called = true
+
         create_files!
         command_args
+        fork_and_exec!
+        spawn_exit_watching_thread
 
-      rescue
-        @running = false
-        raise
-      end
-
-      def classpath
-        @classpath ||= [Server.zk_jar_path, Server.log4j_jar_path, base_dir]
-      end
-
-      def command_args
-        cmd = [Server.java_binary_path]
-        cmd += %W[-Dzookeeper.log_dir=#{log_dir} -Dzookeeper.root.logger=INFO,CONSOLE]
-        if enable_jmx
-          cmd += DEFAULT_JMX_ARGS
-          cmd << "-Dcom.sun.management.jmxremote.port=#{jmx_port}"
+        unless wait_until_ping
+          raise "Oh noes! something went wrong!" unless running?
         end
-        cmd += jvm_flags
-        cmd += %W[-cp #{classpath.join(':')} #{ZOO_MAIN} #{zoo_cfg_path}]
+
+        true
       end
 
       protected
+        def wait_until_ping(timeout=5)
+          times_up = timeout ? Time.now + timeout : 0
+          while Time.now < times_up
+            return true if ping?
+          end
+          false
+        end
+
+        def spawn_exit_watching_thread
+          @exit_watching_thread ||= Thread.new do
+            _, @exit_status = ::Process.wait2(@pid)
+            @mutex.synchronize do
+              @exit_cond.broadcast
+            end
+          end
+        end
+
+        # wait for up to timeout seconds to pass, polling for completion
+        # returns nil if the process didn't exit
+        def wait_for_pid(timeout=2)
+          times_up = timeout ? Time.now + timeout : 0
+
+          while Time.now < times_up
+            pid, stat = ::Process.wait2(@pid, ::Process::WNOHANG)
+            return stat if stat
+            sleep(0.01)
+          end
+
+          nil
+        end
+
+        def fork_and_exec!
+          @pid ||= (
+            args = command_args()
+            args << {:err => [:child, :out], :out => [stdio_redirect_path, File::APPEND|File::CREAT|File::WRONLY]}
+            spawn({}, *command_args)
+          )
+        end
+
         def create_files!
           mkdir_p base_dir
           mkdir_p data_dir
