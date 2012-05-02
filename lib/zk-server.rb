@@ -48,7 +48,7 @@ module ZK
     #
     # @yield [Config] server config instance if block given
     def self.new(opts={})
-      Server::Process.new(opts).tap do |server|
+      ZK::Server::Process.new(opts).tap do |server|
         yield server.config if block_given?
       end
     end
