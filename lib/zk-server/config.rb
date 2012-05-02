@@ -71,6 +71,7 @@ module ZK
       attr_accessor :jmx_port
 
       # array to which additional JVM flags should be added
+      #
       # default is {DEEFAULT_JVM_FLAGS}
       attr_accessor :jvm_flags
 
@@ -90,30 +91,37 @@ module ZK
         opts.each { |k,v| __send__(:"#{k}=", v) }
       end
 
+      # @private
       def zoo_cfg_path
         File.join(base_dir, 'zoo.cfg')
       end
 
+      # @private
       def log4j_props_path
         File.join(base_dir, 'log4j.properties')
       end
 
+      # @private
       def log_dir
         File.join(base_dir, 'log')
       end
 
+      # @private
       def stdio_redirect_path
         File.join(log_dir, 'zookeeper.out')
       end
 
+      # @private
       def data_dir
         File.join(base_dir, 'data')
       end
 
+      # @private
       def classpath
         @classpath ||= [Server.zk_jar_path, Server.log4j_jar_path, base_dir]
       end
 
+      # @private
       def command_args
         cmd = [Server.java_binary_path]
         cmd += %W[-Dzookeeper.log.dir=#{log_dir} -Dzookeeper.root.logger=INFO,CONSOLE]
