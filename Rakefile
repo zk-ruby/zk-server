@@ -12,7 +12,7 @@ task :clean => 'yard:clean'
 
 gemset_name = 'zk-server'
 
-%w[1.8.7 1.9.2 jruby rbx 1.9.3].each do |ns_name|
+%w[1.8.7 1.9.2 jruby 1.9.3].each do |ns_name|
   rvm_ruby = (ns_name == 'rbx') ? "rbx-2.0.testing" : ns_name
 
   ruby_with_gemset        = "#{rvm_ruby}@#{gemset_name}"
@@ -41,7 +41,7 @@ gemset_name = 'zk-server'
   end
 
   task rspec_task_name => bundle_task_name do
-    sh "rvm #{ruby_with_gemset} do env BUNDLE_GEMFILE=#{phony_gemfile_link_name} bundle exec rspec spec --fail-fast"
+    sh "rvm #{ruby_with_gemset} do env JRUBY_OPTS='--1.9' BUNDLE_GEMFILE=#{phony_gemfile_link_name} bundle exec rspec spec --fail-fast"
   end
 
   task "mb:#{ns_name}" => rspec_task_name
