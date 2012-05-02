@@ -1,6 +1,6 @@
 require 'spec_helper'
 
-describe ZK::Server::Process do
+describe ZK::Server::SubProcess do
   let(:tmpdir) { '/tmp/zookeeper' }
 
   subject do 
