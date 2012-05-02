@@ -19,6 +19,30 @@ module ZK
     ZK_JAR_GEM  = 'slyphon-zookeeper_jar'
     LOG4J_GEM   = 'slyphon-log4j'
 
+    def self.mri_187?
+      ruby_187? and not rubinius? and not jruby?
+    end
+
+    def self.ruby_19?
+      false|(RUBY_VERSION =~ /\A1\.9/)
+    end
+
+    def self.ruby_187?
+      RUBY_VERSION == '1.8.7'
+    end
+
+    def self.jruby?
+      defined?(::JRUBY_VERSION)
+    end
+
+    def self.jruby_19?
+      jruby? and ruby_19?
+    end
+
+    def self.rubinius?
+      defined?(::Rubinius)
+    end
+
     # Create a new {ZK::Server::Process} instance. if a block is given
     # then yield the {Config} object to the block
     #
@@ -93,5 +117,10 @@ end
 require 'zk-server/version'
 require 'zk-server/logging'
 require 'zk-server/config'
+require 'zk-server/server'
 require 'zk-server/process'
+
+# if defined?(::JRUBY_VERSION)
+#   require 'zk-server/java_embedded'
+# end
 

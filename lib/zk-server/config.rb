@@ -118,12 +118,12 @@ module ZK
 
       # @private
       def classpath
-        @classpath ||= [Server.zk_jar_path, Server.log4j_jar_path, base_dir]
+        @classpath ||= [ZK::Server.zk_jar_path, ZK::Server.log4j_jar_path, base_dir]
       end
 
       # @private
       def command_args
-        cmd = [Server.java_binary_path]
+        cmd = [ZK::Server.java_binary_path]
         cmd += %W[-Dzookeeper.log.dir=#{log_dir} -Dzookeeper.root.logger=INFO,CONSOLE]
         if enable_jmx
           cmd += DEFAULT_JMX_ARGS

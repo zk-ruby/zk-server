@@ -1,13 +1,10 @@
 require 'spec_helper'
-require 'tempfile'
 
 describe ZK::Server::Process do
-  let(:tmpdir) { 
-    '/tmp/zookeeper'
-  }
+  let(:tmpdir) { '/tmp/zookeeper' }
 
   subject do 
-    ZK::Server::Process.new(:client_port => 21812, :base_dir => tmpdir)
+    described_class.new(:client_port => 21812, :base_dir => tmpdir)
   end
 
   after do 
@@ -17,6 +14,8 @@ describe ZK::Server::Process do
   end
 
   it %[should spawn a ZK server, ping, and then shutdown properly] do
+#     pending "cannot run this under JRuby" if defined?(::JRUBY_VERSION)
+
     subject.run
     subject.should be_pingable
     subject.should be_running

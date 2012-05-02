@@ -7,42 +7,19 @@ module ZK
     # By default, we will create a directory in the current working directory called 'zk-server'
     # to store our data under (configurable). 
     #
-    class Process
-      extend Forwardable
-      include FileUtils
-      include Logging
-
-      def_delegators :config,
-        :base_dir, :data_dir, :log4j_props_path, :log_dir, :command_args,
-        :tick_time, :snap_count, :force_sync, :zoo_cfg_hash, :client_port,
-        :max_client_cnxns, :stdio_redirect_path, :zoo_cfg_path
-
-      # the {Config} object that will be used to configure this Process
-      attr_accessor :config
-
+    class Process < Server
       attr_reader :exit_status
 
       # how long should we wait for the child to start responding to 'ruok'?
       attr_accessor :child_startup_timeout
 
       def initialize(opts={})
-        @child_startup_timeout = opts.delete(:child_startup_timeout) || 6
-        @run_called = false
-        @config = Config.new(opts)
         @exit_watching_thread = nil
 
         @pid = nil
         @exit_status = nil
 
-        @mutex      = Monitor.new
-        @exit_cond  = @mutex.new_cond
-      end
-
-      # removes all files related to this instance
-      # runs {#shutdown} first
-      def clobber!
-        shutdown
-        FileUtils.rm_rf(base_dir)
+        super
       end
 
       # true if the process was started and is still running
@@ -66,16 +43,15 @@ module ZK
             %w[HUP TERM KILL].each do |signal|
               logger.debug { "sending #{signal} to #{@pid}" }
 
+              return unless running? # jruby doesn't seem to get @exit_status ?
+
               begin
                 ::Process.kill(signal, @pid)
               rescue Errno::ESRCH
-                break
+                return true
               end
 
-              if @exit_status or @exit_cond.wait(5)
-                logger.debug { "process exited" }
-                break
-              end
+              @exit_cond.wait(5) # check running? on next pass
             end
           end
 
@@ -83,17 +59,6 @@ module ZK
         end
         true
       end
-
-      # can we connect to the server, issue an 'ruok', and receive an 'imok'?
-      def ping?
-        TCPSocket.open('localhost', client_port) do |sock|
-          sock.puts('ruok')
-          sock.read == 'imok'
-        end
-      rescue
-        false
-      end
-      alias pingable? ping?
 
       # the pid of our child process
       def pid
@@ -111,7 +76,15 @@ module ZK
         @run_called = true
 
         create_files!
-        fork_and_exec!
+
+        if ZK::Server.mri_187?
+          fork_and_exec!
+        elsif ZK::Server.jruby? and not ZK::Server.ruby_19?
+          raise "You must run Jruby in 1.9 compatibility mode! I'm very sorry, i need Kernel.spawn"
+        else
+          spawn!
+        end
+
         spawn_exit_watching_thread
 
         unless wait_until_ping(@child_startup_timeout)
@@ -124,14 +97,6 @@ module ZK
       end
 
       protected
-        def wait_until_ping(timeout=5)
-          times_up = timeout ? Time.now + timeout : 0
-          while Time.now < times_up
-            return true if ping?
-          end
-          false
-        end
-
         def spawn_exit_watching_thread
           @exit_watching_thread ||= Thread.new do
             _, @exit_status = ::Process.wait2(@pid)
@@ -155,6 +120,14 @@ module ZK
           nil
         end
 
+        def spawn!
+          @pid ||= (
+            args = command_args()
+            args << { :err => [:child, :out], :out => [stdio_redirect_path, 'w'] }
+            ::Kernel.spawn({}, *command_args)
+          )
+        end
+
         def fork_and_exec!
           @pid ||= 
             fork do                 # gah, use fork because 1.8.7 sucks
@@ -175,37 +148,6 @@ module ZK
             end
         end
 
-        def create_files!
-          mkdir_p base_dir
-          mkdir_p data_dir
-          write_zoo_cfg!
-          write_log4j_properties!
-        end
-
-        def write_log4j_properties!
-          unless File.exists?(log4j_props_path)
-            cp Server.default_log4j_props_path, log4j_props_path
-          end
-        end
-
-        def write_zoo_cfg!
-          File.open(zoo_cfg_path, 'w') do |fp|
-            fp.puts <<-EOS
-tickTime=#{tick_time}
-dataDir=#{data_dir}
-clientPort=#{client_port}
-maxClientCnxns=#{max_client_cnxns}
-            EOS
-
-            fp.puts("forceSync=#{force_sync}") if force_sync
-            fp.puts("snapCount=#{snap_count}") if snap_count
-            zoo_cfg_hash.each do |k,v|
-              fp.puts("#{k}=#{v}")
-            end
-
-            fp.fsync
-          end
-        end
     end
   end
 end

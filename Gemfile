@@ -2,6 +2,8 @@ source :rubygems
 
 # gem 'zk', :path => '~/zk'
 
+gem 'rake', '>= 0.9'
+
 group :development do
   gem 'pry'
 end
