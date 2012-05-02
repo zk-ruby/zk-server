@@ -42,9 +42,23 @@ module ZK
       # defaults to 2000
       attr_accessor :tick_time
 
-      # default: no value set
+      # from the [admin guide](http://zookeeper.apache.org/doc/r3.3.5/zookeeperAdmin.html)
+      #
+      # > ZooKeeper logs transactions to a transaction log. After snapCount
+      # > transactions are written to a log file a snapshot is started and a new
+      # > transaction log file is created. The default snapCount is 100,000.
+      #
+      # For testing, to speed up disk IO, I generally set this to 1_000_000 and
+      # force_sync to false. YMMV, understand what this does before messing with it
+      # if you care about your data. 
+      #
+      # default: unset
       attr_accessor :snap_count
 
+      # This value can make testing go faster, as zookeeper doesn't have to issue
+      # an fsync() call for each snapshot write. It is however DANGEROUS if you
+      # care about the data. (I set it to false for running tests)
+      #
       # default: no value set
       attr_accessor :force_sync
 

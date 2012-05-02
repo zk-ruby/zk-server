@@ -22,29 +22,42 @@ module ZK
 
       attr_reader :exit_status
 
+      # how long should we wait for the child to start responding to 'ruok'?
+      attr_accessor :child_startup_timeout
+
       def initialize(opts={})
+        @child_startup_timeout = opts.delete(:child_startup_timeout, 5)
         @run_called = false
         @config = Config.new(opts)
         @exit_watching_thread = nil
 
         @pid = nil
         @exit_status = nil
-        @start_queue = Queue.new
 
         @mutex      = Monitor.new
         @exit_cond  = @mutex.new_cond
       end
 
+      # removes all files related to this instance
+      # runs {#shutdown} first
+      def clobber!
+        shutdown
+        FileUtils.rm_rf(base_dir)
+      end
+
+      # true if the process was started and is still running
       def running?
         spawned? and !@exit_status and !!::Process.kill(0, @pid)
       rescue Errno::ESRCH
         false
       end
 
+      # have we started the child process?
       def spawned?
         !!@pid
       end
 
+      # shutdown the child, wait for it to exit, ensure it is dead
       def shutdown
         if @pid
           return if @exit_status
@@ -52,9 +65,14 @@ module ZK
           @mutex.synchronize do
             %w[HUP TERM KILL].each do |signal|
               logger.debug { "sending #{signal} to #{@pid}" }
-              ::Process.kill(signal, @pid)
 
-              if @exit_cond.wait(5)
+              begin
+                ::Process.kill(signal, @pid)
+              rescue Errno::ESRCH
+                break
+              end
+
+              if @exit_status or @exit_cond.wait(5)
                 logger.debug { "process exited" }
                 break
               end
@@ -63,8 +81,10 @@ module ZK
 
           logger.debug { "@exit_status: #{@exit_status}" }
         end
+        true
       end
 
+      # can we connect to the server, issue an 'ruok', and receive an 'imok'?
       def ping?
         TCPSocket.open('localhost', client_port) do |sock|
           sock.puts('ruok')
@@ -74,22 +94,30 @@ module ZK
         false
       end
 
+      # the pid of our child process
       def pid
         @pid
       end
 
+      # start the child, using the {#config}. we create the files necessary,
+      # fork the child, and wait 5s for the child to start responding to pings
+      #
+      #
+      # @return [false,true] false if run has already been called on this instance
+      #   true if we hav
       def run
-        return if @run_called
+        return false if @run_called
         @run_called = true
 
         create_files!
-        command_args
         fork_and_exec!
         spawn_exit_watching_thread
 
         unless wait_until_ping
           raise "Oh noes! something went wrong!" unless running?
         end
+
+        at_exit { self.shutdown }
 
         true
       end

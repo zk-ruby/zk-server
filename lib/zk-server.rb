@@ -11,12 +11,22 @@ Bundler.require
 
 require 'zk'
 
-ZK.logger = Logger.new($stderr).tap { |l| l.level = Logger::DEBUG }
+#ZK.logger = Logger.new($stderr).tap { |l| l.level = Logger::DEBUG }
 
 module ZK
   module Server
     ZK_JAR_GEM  = 'slyphon-zookeeper_jar'
     LOG4J_GEM   = 'slyphon-log4j'
+
+    # Create a new {ZK::Server::Process} instance. if a block is given
+    # then yield the {Config} object to the block
+    #
+    # @yield [Config] server config instance if block given
+    def self.new(opts={})
+      Server::Process.new(opts).tap do |server|
+
+      end
+    end
 
     def self.zk_jar_path
       # in future revisions of the zookeeper jar, we'll make it easier to get

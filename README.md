@@ -1,25 +1,30 @@
 # ZK::Server
 
-Sets up and runs a ZooKeeper standalone server process. 
+Sets up and runs a ZooKeeper standalone server process. Intended for use during testing of zookeeper-related code. The following are the design goals:
 
+* Easy to configure and run
+* Never ever leaks a process (barring impossible circumstances)
 
-## Installation
-
-Add this line to your application's Gemfile:
-
-    gem 'zk-server'
-
-And then execute:
-
-    $ bundle
-
-Or install it yourself as:
-
-    $ gem install zk-server
 
 ## Usage
 
-TODO: Write usage instructions here
+Example usage:
+
+```
+server = ZK::Server.new do |config|
+  config.client_port = 21811
+  config.enable_jmx = true
+  config.force_sync = false
+end
+
+server.run
+
+# do a bunch of stuff (like run your specs)
+
+server.shutdown
+```
+
+For full options, see [ZK::Server::Config](http://rubydoc.info/github/slyphon/zk-server/master/ZK/Server/Config)
 
 ## Contributing
 
