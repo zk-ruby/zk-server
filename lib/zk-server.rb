@@ -59,6 +59,11 @@ module ZK
       @server ||= new(opts, &blk).tap { |s| s.run }
     end
 
+    # a singleton server instance (if start was called)
+    def self.server
+      @server
+    end
+    
     def self.shutdown
       @server and @server.shutdown
     end
