@@ -7,7 +7,7 @@ module ZK
     # By default, we will create a directory in the current working directory called 'zk-server'
     # to store our data under (configurable). 
     #
-    class Process < Server
+    class Process < Base
       attr_reader :exit_status
 
       # how long should we wait for the child to start responding to 'ruok'?

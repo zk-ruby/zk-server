@@ -48,7 +48,7 @@ module ZK
     #
     # @yield [Config] server config instance if block given
     def self.new(opts={})
-      ZK::Server::Process.new(opts).tap do |server|
+      SubProcess.new(opts).tap do |server|
         yield server.config if block_given?
       end
     end
@@ -117,8 +117,8 @@ end
 require 'zk-server/version'
 require 'zk-server/logging'
 require 'zk-server/config'
-require 'zk-server/server'
-require 'zk-server/process'
+require 'zk-server/base'
+require 'zk-server/sub_process'
 
 # if defined?(::JRUBY_VERSION)
 #   require 'zk-server/java_embedded'

@@ -1,7 +1,7 @@
 module ZK
   module Server
     # common base class for Process and JavaEmbedded classes
-    class Server
+    class Base
       extend Forwardable
       include FileUtils
       include Logging
