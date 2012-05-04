@@ -48,7 +48,7 @@ module ZK
     #
     # @yield [Config] server config instance if block given
     def self.new(opts={})
-      Server::Process.new(opts).tap do |server|
+      SubProcess.new(opts).tap do |server|
         yield server.config if block_given?
       end
     end
@@ -59,6 +59,11 @@ module ZK
       @server ||= new(opts, &blk).tap { |s| s.run }
     end
 
+    # a singleton server instance (if start was called)
+    def self.server
+      @server
+    end
+    
     def self.shutdown
       @server and @server.shutdown
     end
@@ -117,8 +122,8 @@ end
 require 'zk-server/version'
 require 'zk-server/logging'
 require 'zk-server/config'
-require 'zk-server/server'
-require 'zk-server/process'
+require 'zk-server/base'
+require 'zk-server/sub_process'
 
 # if defined?(::JRUBY_VERSION)
 #   require 'zk-server/java_embedded'

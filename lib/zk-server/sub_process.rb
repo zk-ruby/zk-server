@@ -7,7 +7,7 @@ module ZK
     # By default, we will create a directory in the current working directory called 'zk-server'
     # to store our data under (configurable). 
     #
-    class Process < Server
+    class SubProcess < Base
       attr_reader :exit_status
 
       # how long should we wait for the child to start responding to 'ruok'?
@@ -24,7 +24,7 @@ module ZK
 
       # true if the process was started and is still running
       def running?
-        spawned? and !@exit_status and !!::Process.kill(0, @pid)
+        spawned? and !@exit_status and false|Process.kill(0, @pid)
       rescue Errno::ESRCH
         false
       end
@@ -46,7 +46,7 @@ module ZK
               return unless running? # jruby doesn't seem to get @exit_status ?
 
               begin
-                ::Process.kill(signal, @pid)
+                Process.kill(signal, @pid)
               rescue Errno::ESRCH
                 return true
               end
@@ -99,7 +99,7 @@ module ZK
       protected
         def spawn_exit_watching_thread
           @exit_watching_thread ||= Thread.new do
-            _, @exit_status = ::Process.wait2(@pid)
+            _, @exit_status = Process.wait2(@pid)
             @mutex.synchronize do
               @exit_cond.broadcast
             end

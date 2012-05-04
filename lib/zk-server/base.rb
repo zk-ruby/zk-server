@@ -1,7 +1,7 @@
 module ZK
   module Server
     # common base class for Process and JavaEmbedded classes
-    class Server
+    class Base
       extend Forwardable
       include FileUtils
       include Logging
@@ -71,6 +71,7 @@ module ZK
           mkdir_p data_dir
           write_zoo_cfg!
           write_log4j_properties!
+          mkdir_p(File.dirname(stdio_redirect_path))
         end
 
         def write_log4j_properties!
