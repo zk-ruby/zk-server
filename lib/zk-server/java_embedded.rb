@@ -1,21 +1,38 @@
 require 'java'
 
-# ok, this is a crime, i know
-
-require 'zookeeper_jar'
-
 module ZK
   module Server
     # gah, this needs to be a singleton, but whaddyagonnado
-    class JavaEmbedded < Server
-      # yeah, holla at ya boy, JZ
-      module JZ
-        Quorum          = org.apache.zookeeper.server.quorum
-        Server          = org.apache.zookeeper.server
-        FileTxnSnapLog  = org.apache.zookeeper.server.persistence.FileTxnSnapLog
-      end
+    class JavaEmbedded < Base
+      System = java.lang.System
 
       JFile = java.io.File
+
+      attr_reader :zookeeper_thread
+      
+      # yeah, holla atcha boy, JZ
+      module JZ
+        # ok, this is seriously seriously ugly, but we want to dynamically
+        # config log4j in this process which would require brain surgery if 
+        # i didn't do it dynamically, therefore we need to have all of this stuff
+        # bind late, and we want some readable shortcuts to these fully-qualified
+        # path names *after* we've done our requires in 'require_dependencies'
+        #
+        # so, yeah, sorry about this
+
+        def self.dynamically_create_consts
+          hash = { 
+            :Quorum         => org.apache.zookeeper.server.quorum,
+            :Server         => org.apache.zookeeper.server,
+            :FileTxnSnapLog => org.apache.zookeeper.server.persistence.FileTxnSnapLog 
+          }
+          
+          hash.each do |k,v|
+            $stderr.puts "dynamically creating constant #{name}::#{v}"
+            const_set(k, v) unless const_defined?(k)
+          end
+        end
+      end
 
       def shutdown
         @mutex.synchronize do
@@ -24,6 +41,8 @@ module ZK
           @cnxn_factory.shutdown
           @zk_server.shutdown
         end
+
+        @zookeeper_thread and @zookeeper_thread.join(5)
       end
 
       def running?
@@ -38,6 +57,7 @@ module ZK
           @run_called = true
 
           create_files!
+          require_dependencies
           spawn_zookeeper_thread!
           wait_until_ping
           true
@@ -48,49 +68,62 @@ module ZK
         !!@zookeeper_thread
       end
 
-      def initialize_and_run
-        main = JZ::Server::ZooKeeperServerMain.new
-        main.run_from_config(config)
-      end
-
       def pid
         $$ # CHEEKY!!
       end
 
-      protected
+      def logging_related_system_properties
+        [ ['log4j.configuration', "file://#{ZK::Server.default_log4j_props_path}"],
+          ['zookeeper.log.dir', config.log_dir],
+          ['zookeeper.root.logger', 'INFO,CONSOLE'], ]
+      end
 
-        def spawn_zookeeper_thread!
-          @zookeeper_thread ||= Thread.new do
-            cnxn_factory.join
-            cnxn_factory.shutdown
-
-            @mutex.synchronize do
-              @exit_cond.broadcast
-            end
-          end
+      # XXX: this assumes that we're only going to ever run one of these per
+      #      process (or at least have only one log)
+      def require_dependencies
+        logging_related_system_properties.each do |k,v|
+          System.set_property(k,v)
         end
 
-        def startup
+        require 'log4j'
+        require 'zookeeper_jar'
+
+        JZ.dynamically_create_consts
+      end
+      
+
+      def spawn_zookeeper_thread!
+        @zookeeper_thread ||= Thread.new do
+          Thread.abort_on_exception = true
           cnxn_factory.startup(zk_server)
-        end
+          cnxn_factory.join
+          cnxn_factory.shutdown
 
-        def cnxn_factory
-          @cnxn_factory ||= JZ::Server::NIOServerCnxn::Factory.new(zk_config.client_for_address, zk_config.max_client_cnxns)
-        end
-
-        def zk_server
-          @zk_server ||= JZ::Server::ZooKeeperServer.new.tap do |zks|
-            zks.txn_log_factory     = FileTxnSnapLog.new(JFile.new(zk_config.data_log_dir), JFile.new(zk_confg.data_dir))
-            zks.tick_time           = zk_config.tick_time
-            zks.min_session_timeout = config.min_session_timeout
-            zks.max_session_timeout = config.max_session_timeout
+          @mutex.synchronize do
+            @exit_cond.broadcast
           end
         end
+      end
 
-        def zk_config
-          @zk_config ||= JZ::Server::ServerConfig.new.tap { |c| c.parse(zoo_cfg_path) }
-        end
+      def cnxn_factory
+        @cnxn_factory ||= JZ::Server::NIOServerCnxn::Factory.new(zk_config.client_port_address, zk_config.max_client_cnxns)
+      end
 
+      def j_data_log_dir
+        @j_data_log_dir ||= JFile.new(zk_config.data_log_dir)
+      end
+
+      def j_data_dir
+        @j_data_dir ||= JFile.new(zk_config.data_dir)
+      end
+
+      def zk_server
+        @zk_server ||= JZ::Server::ZooKeeperServer.new(j_data_log_dir, j_data_dir, zk_config.tick_time)
+      end
+
+      def zk_config
+        @zk_config ||= JZ::Server::ServerConfig.new.tap { |c| c.parse(zoo_cfg_path) }
+      end
     end
   end
 end

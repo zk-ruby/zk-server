@@ -125,7 +125,7 @@ require 'zk-server/config'
 require 'zk-server/base'
 require 'zk-server/sub_process'
 
-# if defined?(::JRUBY_VERSION)
-#   require 'zk-server/java_embedded'
-# end
+if defined?(::JRUBY_VERSION)
+  require 'zk-server/java_embedded'
+end
 
