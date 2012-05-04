@@ -93,7 +93,7 @@ module ZK
 
       def spawn_zookeeper_thread!
         @zookeeper_thread ||= Thread.new do
-          Thread.abort_on_exception = true
+          Thread.current.abort_on_exception = true
           cnxn_factory.startup(zk_server)
           cnxn_factory.join
           cnxn_factory.shutdown
