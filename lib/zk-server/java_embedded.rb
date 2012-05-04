@@ -28,7 +28,6 @@ module ZK
           }
           
           hash.each do |k,v|
-            $stderr.puts "dynamically creating constant #{name}::#{v}"
             const_set(k, v) unless const_defined?(k)
           end
         end

@@ -35,6 +35,10 @@ module ZK
       defined?(::JRUBY_VERSION)
     end
 
+    def self.jruby_18?
+      jruby? and ruby_187?
+    end
+
     def self.jruby_19?
       jruby? and ruby_19?
     end
@@ -48,7 +52,9 @@ module ZK
     #
     # @yield [Config] server config instance if block given
     def self.new(opts={})
-      SubProcess.new(opts).tap do |server|
+      klass = jruby? ? JavaEmbedded : SubProcess
+
+      klass.new(opts).tap do |server|
         yield server.config if block_given?
       end
     end
