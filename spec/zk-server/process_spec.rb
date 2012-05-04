@@ -14,7 +14,7 @@ describe ZK::Server::SubProcess do
   end
 
   it %[should spawn a ZK server, ping, and then shutdown properly] do
-#     pending "cannot run this under JRuby" if defined?(::JRUBY_VERSION)
+    pending "cannot run this under JRuby" if defined?(::JRUBY_VERSION)
 
     subject.run
     subject.should be_pingable
