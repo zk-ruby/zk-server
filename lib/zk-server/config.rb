@@ -45,6 +45,23 @@ module ZK
       # what id should this zookeeper use for itself? (default 1)
       attr_accessor :myid
 
+      # necessary for cluster nodes (default 5)
+      #
+      # from the zookeeper admin guide:
+      # > Amount of time, in ticks (see tickTime), to allow followers to connect
+      # > and sync to a leader. Increased this value as needed, if the amount of data
+      # > managed by ZooKeeper is large.
+      #
+      attr_accessor :init_limit
+
+      # necessary for cluster nodes (default 2)
+      #
+      # > Amount of time, in ticks (see tickTime), to allow followers to sync
+      # > with ZooKeeper. If followers fall too far behind a leader, they will be
+      # > dropped.
+      #
+      attr_accessor :sync_limit
+
       # from the [admin guide](http://zookeeper.apache.org/doc/r3.3.5/zookeeperAdmin.html)
       #
       # > ZooKeeper logs transactions to a transaction log. After snapCount
@@ -78,6 +95,7 @@ module ZK
       # default is {DEEFAULT_JVM_FLAGS}
       attr_accessor :jvm_flags
 
+
       def initialize(opts={})
         @base_dir = File.join(Dir.getwd, 'zookeeper')
         @zoo_cfg_hash = {}
@@ -89,6 +107,8 @@ module ZK
         @enable_jmx   = false
         @jvm_flags    = DEFAULT_JVM_FLAGS.dup
         @myid         = 1
+        @init_limit   = 5
+        @sync_limit   = 2
 
         @max_client_cnxns = 100
 
@@ -140,6 +160,25 @@ module ZK
         end
         cmd += jvm_flags
         cmd += %W[-cp #{classpath.join(':')} #{ZOO_MAIN} #{zoo_cfg_path}]
+      end
+
+      # renders this config as a 
+      def to_config_file_str
+        config = %W[
+          tickTime=#{tick_time}
+          dataDir=#{data_dir}
+          clientPort=#{client_port}
+          maxClientCnxns=#{max_client_cnxns}
+          initLimit=#{init_limit}
+          syncLimit=#{sync_limit}
+        ]
+
+        config << "forceSync=#{force_sync}" if force_sync
+        config << "snapCount=#{snap_count}" if snap_count
+
+        zoo_cfg_hash.each { |k,v| config << "#{k}=#{v}" }
+
+        config.join("\n")
       end
     end
   end

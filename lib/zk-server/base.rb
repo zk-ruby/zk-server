@@ -90,19 +90,7 @@ module ZK
 
         def write_zoo_cfg!
           File.open(zoo_cfg_path, 'w') do |fp|
-            fp.puts <<-EOS
-tickTime=#{tick_time}
-dataDir=#{data_dir}
-clientPort=#{client_port}
-maxClientCnxns=#{max_client_cnxns}
-            EOS
-
-            fp.puts("forceSync=#{force_sync}") if force_sync
-            fp.puts("snapCount=#{snap_count}") if snap_count
-            zoo_cfg_hash.each do |k,v|
-              fp.puts("#{k}=#{v}")
-            end
-
+            fp.puts(config.to_config_file_str)
             fp.fsync
           end
         end
