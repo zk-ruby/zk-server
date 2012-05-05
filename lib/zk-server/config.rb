@@ -2,9 +2,9 @@ module ZK
   module Server
     class Config
       DEFAULT_JVM_FLAGS = %w[
-        -server 
+        -server
         -Xmx256m
-        -Dzookeeper.serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory 
+        -Dzookeeper.serverCnxnFactory=org.apache.zookeeper.server.NettyServerCnxnFactory
       ].freeze
 
       # the com.sun.managemnt.jmxremote.port arg will be filled in dynamically
@@ -24,11 +24,11 @@ module ZK
       attr_accessor :base_dir
 
       # a hash that will be used to provide extra values for the zoo.cfg file.
-      # keys are written as-is to the file, so they should be camel-cased. 
+      # keys are written as-is to the file, so they should be camel-cased.
       #
       # dataDir will be set relative to {#base_dir} and clientPort will either use
       # the default of 2181, or can be adjusted by {#client_port=}
-      # 
+      #
       attr_accessor :zoo_cfg_hash
 
       # what port should the server listen on for connections? (default 2181)
@@ -42,6 +42,9 @@ module ZK
       # defaults to 2000
       attr_accessor :tick_time
 
+      # what id should this zookeeper use for itself? (default 1)
+      attr_accessor :myid
+
       # from the [admin guide](http://zookeeper.apache.org/doc/r3.3.5/zookeeperAdmin.html)
       #
       # > ZooKeeper logs transactions to a transaction log. After snapCount
@@ -50,7 +53,7 @@ module ZK
       #
       # For testing, to speed up disk IO, I generally set this to 1_000_000 and
       # force_sync to false. YMMV, understand what this does before messing with it
-      # if you care about your data. 
+      # if you care about your data.
       #
       # default: unset
       attr_accessor :snap_count
@@ -85,6 +88,7 @@ module ZK
         @jmx_port     = 22222
         @enable_jmx   = false
         @jvm_flags    = DEFAULT_JVM_FLAGS.dup
+        @myid         = 1
 
         @max_client_cnxns = 100
 
@@ -94,6 +98,11 @@ module ZK
       # @private
       def zoo_cfg_path
         File.join(base_dir, 'zoo.cfg')
+      end
+
+      # @private
+      def zoo_myid_path
+        File.join(base_dir, 'data', 'myid')
       end
 
       # @private
