@@ -9,8 +9,9 @@ module ZK
       def_delegators :config,
         :base_dir, :data_dir, :log4j_props_path, :log_dir, :command_args,
         :tick_time, :snap_count, :force_sync, :zoo_cfg_hash, :client_port,
-        :max_client_cnxns, :stdio_redirect_path, :zoo_cfg_path
-      
+        :max_client_cnxns, :stdio_redirect_path, :zoo_cfg_path,
+        :zoo_myid_path, :myid
+
       # the {Config} object that will be used to configure this Process
       attr_accessor :config
 
@@ -69,6 +70,7 @@ module ZK
         def create_files!
           mkdir_p base_dir
           mkdir_p data_dir
+          write_myid!
           write_zoo_cfg!
           write_log4j_properties!
           mkdir_p(File.dirname(stdio_redirect_path))
@@ -77,6 +79,12 @@ module ZK
         def write_log4j_properties!
           unless File.exists?(log4j_props_path)
             cp ZK::Server.default_log4j_props_path, log4j_props_path
+          end
+        end
+
+        def write_myid!
+          File.open(zoo_myid_path, 'w') do |io|
+            io.puts myid
           end
         end
 
