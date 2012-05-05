@@ -1,5 +1,10 @@
 module ZK
   module Server
+    # Note that this supports all of the 3.3.5 options, but __will not__ do any
+    # sanity checking for you. All options specifyable here (especially those that
+    # require directories to be created outside of {#base_dir}) may not be handled
+    # properly by {Base} and subclasses.
+    #
     class Config
       DEFAULT_JVM_FLAGS = %w[
         -server
@@ -23,6 +28,26 @@ module ZK
       # basis for all other path generation. Defaults to `File.join(Dir.getwd, 'zookeeper')`
       attr_accessor :base_dir
 
+      # defaults to `#{base_dir}/data`. use this to override the default
+      #
+      # > the location where ZooKeeper will store the in-memory database
+      # > snapshots and, unless specified otherwise, the transaction log of
+      # > updates to the database.
+      #
+      # be aware that the {ZK::Server::Base} class will not create any
+      # directories but {#base_dir}.
+      #
+      attr_writer :data_dir
+
+      # defaults to nil, and zookeeper will just use the default value (being the
+      # same as {#data_dir}
+      #
+      # > This option will direct the machine to write the transaction log to the
+      # > dataLogDir rather than the dataDir. This allows a dedicated log device
+      # > to be used, and helps avoid competition between logging and snaphots.
+      #
+      attr_accessor :data_log_dir
+
       # a hash that will be used to provide extra values for the zoo.cfg file.
       # keys are written as-is to the file, so they should be camel-cased.
       #
@@ -42,8 +67,18 @@ module ZK
       # defaults to 2000
       attr_accessor :tick_time
 
-      # what id should this zookeeper use for itself? (default 1)
+      # what cluster id should this zookeeper use for itself? (default 1)
       attr_accessor :myid
+
+      # default is nil, and will not be specified in the config
+      #
+      # > Clients can submit requests faster than ZooKeeper can process them,
+      # > especially if there are a lot of clients. To prevent ZooKeeper from
+      # > running out of memory due to queued requests, ZooKeeper will throttle
+      # > clients so that there is no more than globalOutstandingLimit
+      # > outstanding requests in the system. The default limit is 1,000.
+      #
+      attr_accessor :global_outstanding_limit
 
       # necessary for cluster nodes (default 5)
       #
@@ -79,8 +114,73 @@ module ZK
       # an fsync() call for each snapshot write. It is however DANGEROUS if you
       # care about the data. (I set it to false for running tests)
       #
+      # if true: 'yes', false: 'no', nil not specified in the config
+      #
       # default: no value set
       attr_accessor :force_sync
+
+      # default: nil
+      #
+      # > To avoid seeks ZooKeeper allocates space in the transaction log file in
+      # > blocks of preAllocSize kilobytes. The default block size is 64M. One
+      # > reason for changing the size of the blocks is to reduce the block size
+      # > if snapshots are taken more often. (Also, see snapCount).
+      attr_accessor :pre_alloc_size
+
+      # default: nil
+      #
+      # > the address (ipv4, ipv6 or hostname) to listen for client
+      # > connections; that is, the address that clients attempt to connect to.
+      # > This is optional, by default we bind in such a way that any connection
+      # > to the clientPort for any address/interface/nic on the server will be
+      # > accepted.
+      #
+      attr_accessor :client_port_address
+
+      # default: nil
+      #
+      # > the minimum session timeout in milliseconds that the server will allow
+      # > the client to negotiate. Defaults to 2 times the tickTime
+      #
+      attr_accessor :min_session_timeout
+
+      # default: nil
+      #
+      # > the maximum session timeout in milliseconds that the server will allow
+      # > the client to negotiate. Defaults to 20 times the tickTime.
+      attr_accessor :max_session_timeout
+
+      # default: nil
+      #
+      # If true, the value 'yes' will be used for this value, false will write 'no'
+      # to the config file. The default (nil) is not to specify a value in the config.
+      #
+      # > Leader accepts client connections. Default value is "yes". The leader
+      # > machine coordinates updates. For higher update throughput at thes
+      # > slight expense of read throughput the leader can be configured to not
+      # > accept clients and focus on coordination. The default to this option is
+      # > yes, which means that a leader will accept client connections
+      #
+      attr_accessor :leader_serves
+
+      # default: nil 
+      #
+      # by default this is not specified
+      #
+      # > Sets the timeout value for opening connections for leader election
+      # > notifications.
+      #
+      attr_accessor :cnx_timeout
+
+      # default: nil
+      #
+      # if true: 'yes', false: 'no', nil not specified in the config
+      #
+      # this is listed as a DANGEROUS setting
+      #
+      # > Skips ACL checks. This results in a boost in throughput, but opens up
+      # > full access to the data tree to everyone.
+      attr_accessor :skip_acl
 
       # if truthy, will enable jmx (defaults to false)
       # note that our defualt jmx config has all security and auth turned off
@@ -142,7 +242,7 @@ module ZK
 
       # @private
       def data_dir
-        File.join(base_dir, 'data')
+        @data_dir ||= File.join(base_dir, 'data')
       end
 
       # @private
@@ -162,23 +262,38 @@ module ZK
         cmd += %W[-cp #{classpath.join(':')} #{ZOO_MAIN} #{zoo_cfg_path}]
       end
 
-      # renders this config as a 
+      # renders this config as a string that can be written to zoo.cfg
       def to_config_file_str
-        config = %W[
-          tickTime=#{tick_time}
-          dataDir=#{data_dir}
-          clientPort=#{client_port}
-          maxClientCnxns=#{max_client_cnxns}
-          initLimit=#{init_limit}
-          syncLimit=#{sync_limit}
-        ]
+        config = {
+          'dataDir'                 => data_dir,
+          'skipACL'                 => skip_acl,
+          'tickTime'                => tick_time,
+          'initLimit'               => init_limit,
+          'syncLimit'               => sync_limit,
+          'forceSync'               => force_sync,
+          'snapCount'               => snap_count,
+          'clientPort'              => client_port,
+          'dataLogDir'              => data_log_dir,
+          'preAllocSize'            => pre_alloc_size,
+          'leaderServes'            => leader_serves,
+          'maxClientCnxns'          => max_client_cnxns,
+          'clientPortAddress'       => client_port_address,
+          'minSessionTimeout'       => min_session_timeout,
+          'maxSessionTimeout'       => max_session_timeout,
+          'globalOutstandingLimit'  => global_outstanding_limit,
+        }
+        
+        config = config.merge(zoo_cfg_hash)
 
-        config << "forceSync=#{force_sync}" if force_sync
-        config << "snapCount=#{snap_count}" if snap_count
+        config.delete_if { |k,v| v.nil? }
 
-        zoo_cfg_hash.each { |k,v| config << "#{k}=#{v}" }
+        %w[leaderServes skipACL forceSync].each do |yorn_key|
+          if config.has_key?(yorn_key)
+            config[yorn_key] = config[yorn_key] ? 'yes' : 'no'
+          end
+        end
 
-        config.join("\n")
+        config.sort.map {|kv| kv.join("=") }.join("\n")
       end
     end
   end

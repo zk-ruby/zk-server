@@ -7,9 +7,8 @@ module ZK
       include Logging
 
       def_delegators :config,
-        :base_dir, :data_dir, :log4j_props_path, :log_dir, :command_args,
-        :tick_time, :snap_count, :force_sync, :zoo_cfg_hash, :client_port,
-        :max_client_cnxns, :stdio_redirect_path, :zoo_cfg_path,
+        :base_dir, :data_dir, :log4j_props_path, :command_args,
+        :client_port, :stdio_redirect_path, :zoo_cfg_path,
         :zoo_myid_path, :myid
 
       # the {Config} object that will be used to configure this Process
