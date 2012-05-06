@@ -24,7 +24,12 @@ module ZK
 
       # true if the process was started and is still running
       def running?
-        spawned? and !@exit_status and false|Process.kill(0, @pid)
+        spawned? and !@exit_status and alive?
+      end
+
+      def alive?
+        return false unless spawned?
+        false|kill(0)
       rescue Errno::ESRCH
         false
       end
@@ -46,7 +51,7 @@ module ZK
               return unless running? # jruby doesn't seem to get @exit_status ?
 
               begin
-                Process.kill(signal, @pid)
+                kill(signal)
               rescue Errno::ESRCH
                 return true
               end
@@ -54,6 +59,12 @@ module ZK
               @exit_cond.wait(5) # check running? on next pass
             end
           end
+
+          unless @exit_watching_thread.join(3) == @exit_watching_thread
+            logger.warn { "exit watching thread didn't exit after 3 sec" }
+          end
+
+          @pid = @exit_watching_thread = nil
 
           logger.debug { "@exit_status: #{@exit_status}" }
         end
@@ -63,6 +74,11 @@ module ZK
       # the pid of our child process
       def pid
         @pid
+      end
+
+      def kill(signal)
+        raise "No pid yet!" unless @pid
+        Process.kill(signal, @pid)
       end
 
       # start the child, using the {#config}. we create the files necessary,
@@ -124,7 +140,9 @@ module ZK
           @pid ||= (
             args = command_args()
             args << { :err => [:child, :out], :out => [stdio_redirect_path, 'w'] }
-            ::Kernel.spawn({}, *command_args)
+            ::Kernel.spawn({}, *command_args).tap do |pid|
+              logger.debug { "Spawned process #{pid}" }
+            end
           )
         end
 

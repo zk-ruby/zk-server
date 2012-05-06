@@ -130,6 +130,7 @@ require 'zk-server/logging'
 require 'zk-server/config'
 require 'zk-server/base'
 require 'zk-server/sub_process'
+require 'zk-server/cluster'
 
 if defined?(::JRUBY_VERSION)
   require 'zk-server/java_embedded'

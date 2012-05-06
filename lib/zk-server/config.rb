@@ -195,9 +195,12 @@ module ZK
       # default is {DEEFAULT_JVM_FLAGS}
       attr_accessor :jvm_flags
 
+      def self.default_base_dir
+        File.join(Dir.getwd, 'zookeeper')
+      end
 
       def initialize(opts={})
-        @base_dir = File.join(Dir.getwd, 'zookeeper')
+        @base_dir     = self.class.default_base_dir
         @zoo_cfg_hash = {}
         @tick_time    = 2000
         @client_port  = 2181

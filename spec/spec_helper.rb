@@ -13,5 +13,7 @@ ZK::Server.logger = Logger.new($stderr).tap { |l| l.level = Logger::DEBUG }
 
 RSpec.configure do |config|
   config.mock_with :rspec
+  config.include(WaitWatchers)
+  config.extend(WaitWatchers)
 end
 
