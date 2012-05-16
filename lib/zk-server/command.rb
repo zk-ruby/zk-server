@@ -37,6 +37,7 @@ module ZK
         hash = opts.to_hash
 
         hash.delete(:help)
+        hash[:force_sync] = !hash.delete(:no_force_sync)
         hash.reject! { |k,v| v.nil? }
 
         config = ZK::Server::Config.new(hash)
