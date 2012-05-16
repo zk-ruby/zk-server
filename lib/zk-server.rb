@@ -8,7 +8,6 @@ require 'socket'
 
 require 'rubygems'
 require 'bundler/setup'
-Bundler.require(:default)
 
 require 'slop'
 
