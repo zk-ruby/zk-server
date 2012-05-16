@@ -7,6 +7,7 @@ require 'socket'
 # as an API
 
 require 'rubygems'
+require 'bundler'
 require 'bundler/setup'
 
 require 'slop'
