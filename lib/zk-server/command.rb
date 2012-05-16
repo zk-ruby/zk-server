@@ -38,6 +38,11 @@ module ZK
 
         hash.delete(:help)
         hash[:force_sync] = !hash.delete(:no_force_sync)
+
+        if flags = hash.delete(:jvm_flags)
+          hash[:jvm_flags] = flags.split(' ')
+        end
+
         hash.reject! { |k,v| v.nil? }
 
         config = ZK::Server::Config.new(hash)
