@@ -24,12 +24,12 @@ module ZK
       def run
         opts = Slop.parse(:help => true, :strict => true) do
           banner "zk-server [opts] runs a ZooKeeper server in the foreground"
-          on :d,  :base_dir=,   "defaults to #{ZK::Server::Config.default_base_dir}" 
-          on      :force_sync,  'force fsync on every snapshot'
-          on      :skip_acl,    'skip acl checks'
-          on :p,  :port=,       'port to listen on', :as => :integer
-          on      :jvm_flags=,  'additional JVM flags to pass'
-          on      :snap_count=, 'how often to take a snapshot, default 100_000', :as => :integer
+          on :d,  :base_dir=,       "defaults to #{ZK::Server::Config.default_base_dir}" 
+          on      :no_force_sync,   "don't force fsync on every snapshot"
+          on      :skip_acl,        'skip acl checks'
+          on :p,  :port=,           'port to listen on', :as => :integer
+          on      :jvm_flags=,      'additional JVM flags to pass'
+          on      :snap_count=,     'how often to take a snapshot, default 100_000', :as => :integer
         end
 
         return if opts.help?
