@@ -1,13 +1,14 @@
-# Yes, i know, this is arguably bad form, but i'm actually going to use bundler
-# as an API
-require 'rubygems'
-require 'bundler/setup'
 require 'fileutils'
 require 'forwardable'
 require 'logger'
 require 'socket'
 
-Bundler.require
+# Yes, i know, this is arguably bad form, but i'm actually going to use bundler
+# as an API
+
+require 'rubygems'
+require 'bundler/setup'
+Bundler.require(:default)
 
 require 'slop'
 
