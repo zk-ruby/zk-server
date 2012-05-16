@@ -9,6 +9,8 @@ require 'socket'
 
 Bundler.require
 
+require 'slop'
+
 # require 'zk'
 
 #ZK.logger = Logger.new($stderr).tap { |l| l.level = Logger::DEBUG }
@@ -131,6 +133,7 @@ require 'zk-server/config'
 require 'zk-server/base'
 require 'zk-server/sub_process'
 require 'zk-server/cluster'
+require 'zk-server/command'
 
 if defined?(::JRUBY_VERSION)
   require 'zk-server/java_embedded'

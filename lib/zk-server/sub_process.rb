@@ -8,7 +8,7 @@ module ZK
     # to store our data under (configurable). 
     #
     class SubProcess < Base
-      attr_reader :exit_status
+      attr_reader :status
 
       # how long should we wait for the child to start responding to 'ruok'?
       attr_accessor :child_startup_timeout
@@ -17,14 +17,23 @@ module ZK
         @exit_watching_thread = nil
 
         @pid = nil
-        @exit_status = nil
+        @status = nil
 
         super
       end
 
+      # wait for sub-process to exit
+      def join
+        @mutex.synchronize do
+          logger.debug { "spawned process #{@pid}" }
+          @exit_cond.wait_until { @status }
+        end
+        @status.success?
+      end
+      
       # true if the process was started and is still running
       def running?
-        spawned? and !@exit_status and alive?
+        spawned? and !@status and alive?
       end
 
       def alive?
@@ -42,13 +51,13 @@ module ZK
       # shutdown the child, wait for it to exit, ensure it is dead
       def shutdown
         if @pid
-          return if @exit_status
+          return if @status
 
           @mutex.synchronize do
             %w[HUP TERM KILL].each do |signal|
               logger.debug { "sending #{signal} to #{@pid}" }
 
-              return unless running? # jruby doesn't seem to get @exit_status ?
+              return unless running? # jruby doesn't seem to get @status ?
 
               begin
                 kill(signal)
@@ -66,7 +75,7 @@ module ZK
 
           @pid = @exit_watching_thread = nil
 
-          logger.debug { "@exit_status: #{@exit_status}" }
+          logger.debug { "@status: #{@status}" }
         end
         true
       end
@@ -115,7 +124,7 @@ module ZK
       protected
         def spawn_exit_watching_thread
           @exit_watching_thread ||= Thread.new do
-            _, @exit_status = Process.wait2(@pid)
+            _, @status = Process.wait2(@pid)
             @mutex.synchronize do
               @exit_cond.broadcast
             end

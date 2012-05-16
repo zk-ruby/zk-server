@@ -18,7 +18,7 @@ module ZK
         @child_startup_timeout = opts.delete(:child_startup_timeout) || 6
 
         @run_called = false
-        @config     = Config.new(opts)
+        @config     = opts[:config] || Config.new(opts)
 
         @mutex      = Monitor.new
         @exit_cond  = @mutex.new_cond

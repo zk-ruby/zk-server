@@ -200,6 +200,7 @@ module ZK
       end
 
       def initialize(opts={})
+        $stderr.puts "#{self.class}#initialize #{opts.inspect}" 
         @base_dir     = self.class.default_base_dir
         @zoo_cfg_hash = {}
         @tick_time    = 2000

@@ -1,0 +1,7 @@
+#!/usr/bin/env ruby
+
+require File.expand_path('../../lib/zk-server', __FILE__)
+
+ZK::Server::Command.new.run
+
+# vim:ft=ruby

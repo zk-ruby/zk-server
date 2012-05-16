@@ -11,6 +11,7 @@ Gem::Specification.new do |s|
   s.add_runtime_dependency 'bundler', '~> 1.1.3'
   s.add_runtime_dependency 'slyphon-log4j', '= 1.2.15'
   s.add_runtime_dependency 'slyphon-zookeeper_jar', '~> 3.3.5'
+  s.add_runtime_dependency 'slop', '~> 3.2.0'
 
   s.files         = `git ls-files`.split($\)
   s.executables   = s.files.grep(%r{^bin/}).map{ |f| File.basename(f) }
