@@ -12,6 +12,10 @@ group :test do
   gem 'rspec', '~> 2.9.0'
 end
 
+git 'git@github.com:slyphon/zookeeper_jar.git', :branch => 'v3.4.4' do
+  gem 'slyphon-zookeeper_jar'
+end
+
 group :docs do
   gem 'yard', '~> 0.7.5'
 
