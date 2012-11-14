@@ -8,7 +8,7 @@ Gem::Specification.new do |s|
   s.summary       = s.description + "\n"
   s.homepage      = "http://github.com/slyphon/zk-server"
 
-  s.add_runtime_dependency 'bundler', '~> 1.1'
+  s.add_runtime_dependency 'bundler', '~> 1'
   s.add_runtime_dependency 'slyphon-log4j', '= 1.2.15'
   s.add_runtime_dependency 'slyphon-zookeeper_jar', '~> 3.3.5'
   s.add_runtime_dependency 'slop', '~> 3.2.0'
