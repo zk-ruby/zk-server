@@ -94,7 +94,13 @@ module ZK
     end
 
     def self.get_jar_paths_from_gem(gem_name)
-      glob = "#{get_spec_for(gem_name).lib_dirs_glob}/**/*.jar"
+      spec = get_spec_for(gem_name)
+
+      if spec.respond_to?(:lib_dirs_glob)
+        glob = "#{spec.lib_dirs_glob}/**/*.jar"
+      else
+        glob = "#{spec.load_paths.first}/**/*.jar"
+      end
 
       Dir[glob].tap do |ary|
         raise "gem #{gem_name} did not contain any jars (using glob: #{glob.inspect})" if ary.empty?
