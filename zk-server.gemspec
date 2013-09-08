@@ -10,7 +10,7 @@ Gem::Specification.new do |s|
 
   s.add_runtime_dependency 'bundler', '>= 1'
   s.add_runtime_dependency 'slyphon-log4j', '= 1.2.15'
-  s.add_runtime_dependency 'zk-ruby-zookeeper_jar', '~> 3.4'
+  s.add_runtime_dependency 'slyphon-zookeeper_jar', '~> 3.3.5'
   s.add_runtime_dependency 'slop', '>= 3.2.0'
 
   s.files         = `git ls-files`.split($\)
