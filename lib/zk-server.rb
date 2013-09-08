@@ -19,7 +19,7 @@ require 'slop'
 module ZK
   module Server
 
-    ZK_JAR_GEM  = 'slyphon-zookeeper_jar'
+    ZK_JAR_GEM  = 'zk-ruby-zookeeper_jar'
     LOG4J_GEM   = 'slyphon-log4j'
 
     def self.mri_187?
