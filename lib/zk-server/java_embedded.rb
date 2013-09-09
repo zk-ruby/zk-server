@@ -23,8 +23,7 @@ module ZK
         def self.dynamically_create_consts
           hash = { 
             :Quorum         => org.apache.zookeeper.server.quorum,
-            :Server         => org.apache.zookeeper.server,
-            :FileTxnSnapLog => org.apache.zookeeper.server.persistence.FileTxnSnapLog 
+            :Server         => org.apache.zookeeper.server
           }
           
           hash.each do |k,v|
