@@ -1,7 +1,7 @@
 module ZK
   module Server
     # default logger instance
-    @logger ||= Logger.new($stderr).tap { |l| l.level = Logger::FATAL }
+    @logger ||= ::Logger.new($stderr).tap { |l| l.level = ::Logger::FATAL }
 
     class << self
       attr_accessor :logger
@@ -20,4 +20,3 @@ module ZK
     end
   end
 end
-
