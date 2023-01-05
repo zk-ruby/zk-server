@@ -76,7 +76,7 @@ module ZK
         end
 
         def write_log4j_properties!
-          unless File.exists?(log4j_props_path)
+          unless File.exist?(log4j_props_path)
             cp ZK::Server.default_log4j_props_path, log4j_props_path
           end
         end
